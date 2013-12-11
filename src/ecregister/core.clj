@@ -1,11 +1,20 @@
 (ns ecregister.core
   (:gen-class)
-  (:use [seesaw.core])
+  (:use [seesaw.core seesaw.mig])
   )
 
 (defn build-avatars-tab []
-  (label "Avatars")
+  (let [bg-stamp-pos (button-group)]
+       (mig-panel
+        :items [[(label "Имя пользователя:") ""]
+                [(text :columns 15) "wrap"]
+                [(label "Положение штампа:")]
+                [(flow-panel :items [(radio :id :top :text "Сверху" :group bg-stamp-pos)
+                                     (radio :id :bottom :text "Снизу" :group bg-stamp-pos)]) "wrap"]
+                [(button :text "Проштамповать") ""]]))
   )
+;;(config! f :content (build-content))
+
 (defn build-posts-tab []
   (label "Posts"))
 
@@ -16,7 +25,6 @@
             :tabs [ {:title "Аватарки" :content (build-avatars-tab)}
                     {:title "Посты" :content (build-posts-tab)}])
            ]))
-;; (config! f :content (build-content))
 ;; (def f (make-frame (build-content)))
 ;; (show! f)
 
@@ -26,7 +34,7 @@
    :title "Free Away Admin"
    :on-close :hide
    :size [640 :by 480]
-   :content (label "hello")
+   :content (label "hello") ;; TODO replace label => (build-content)
    ))
 
 (defn -main [& args]
