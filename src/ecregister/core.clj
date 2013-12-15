@@ -24,39 +24,30 @@
                                                ))
                        "span"]])]
 
-    (defn stop-listening [active-chan comm-chan log-widget te-name]
+    (defn stop-listening [active-chan keys-chan log-widget te-name]
       (log log-widget "Stopping listening\n")
       (go
        (if (<! active-chan)
          (do
-           (if-let [ c (<! comm-chan)]
-             (do
-               (log log-widget "closed keys channel from comm-chanel\n")
-               (close! c)
-               (>! active-chan false)
-               )
-             )
-           (log log-widget (str "SENDING " (text te-name) "\n"))
-           )
+           ;; important to put it back to channel immediately so others could read
+           (>! active-chan false)
+           (log log-widget (str "SENDING " (text te-name) "\n")))
          (log log-widget "read false from active chan")
          ))
       )
-    (defn start-listening [active-chan comm-chan log-widget te-name]
+    (defn start-listening [active-chan keys-chan log-widget te-name]
       (log log-widget "Starting listening\n")
       (go
-       (>! comm-chan (chan 1))
        (>! active-chan true)
        (loop []
-         (let [keys-chan (<! comm-chan)]
-           (>! comm-chan keys-chan)
-           (let [[v ch] (alts! [keys-chan (timeout 1000)])]
-             (if (not (blank? v))
-               (recur)
-               (do
-                 (log log-widget "timeout reached\n")
-                 (stop-listening active-chan comm-chan log-widget te-name))
-               ))
-           ))))
+         (let [[v ch] (alts! [keys-chan (timeout 800)])]
+              (if (not (blank? v))
+                (recur)
+                (do
+                  (log log-widget "timeout reached\n")
+                  (stop-listening active-chan keys-chan log-widget te-name))
+                ))
+         )))
 
     ;; It is important in this scheme to return value to the channel as soon as it had been read:
     ;; so that others interested can read back
@@ -64,7 +55,7 @@
     (let [te-name (select form [:#username])
           lb-log (select form [:#log])
           active-chan (chan 1)
-          comm-chan (chan 1)]
+          keys-chan (chan 1)]
       (listen te-name
               :focus-gained (fn [e]
                               (put! active-chan false)
@@ -74,20 +65,18 @@
                           (go
                            (if (<! active-chan)
                              (do
+                               ;; important to put it back to channel immediately so others could read
                                (>! active-chan true)
-                               (log lb-log "in active mode, sending keypress\n")
-                               (let [keys-chan (<! comm-chan)]
-                                 (>! comm-chan keys-chan)
-                                 (>! keys-chan "1")
-                                 ))
+                               (>! keys-chan "1")
+                               )
                              (do
-                               (log lb-log "in not-active mode, initiating listening\n")
-                               (start-listening active-chan comm-chan lb-log te-name))
+                               ;(log lb-log "in not-active mode, initiating listening\n")
+                               (start-listening active-chan keys-chan lb-log te-name))
                              ))
                           )
               :focus-lost (fn [e]
-                            (log lb-log "focus lost, stopping\n")
-                            (stop-listening active-chan comm-chan lb-log te-name)
+                            ;(log lb-log "focus lost, stopping\n")
+                            (stop-listening active-chan keys-chan lb-log te-name)
                             )
               )
 
