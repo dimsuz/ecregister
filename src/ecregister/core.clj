@@ -7,7 +7,7 @@
   (:require [clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
   )
 
-(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
+;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
 
 (defn build-avatars-tab []
   (let [bg-stamp-pos (button-group)
@@ -24,38 +24,37 @@
                                                ))
                        "span"]])]
 
-    (defn stop-listening [active-chan keys-chan log-widget te-name]
-      (log log-widget "Stopping listening\n")
-      (go
-       (if (<! active-chan)
-         (do
-           ;; important to put it back to channel immediately so others could read
-           (>! active-chan false)
-           (log log-widget (str "SENDING " (text te-name) "\n")))
-         (log log-widget "read false from active chan")
-         ))
-      )
-    (defn start-listening [active-chan keys-chan log-widget te-name]
-      (log log-widget "Starting listening\n")
-      (go
-       (>! active-chan true)
-       (loop []
-         (let [[v ch] (alts! [keys-chan (timeout 800)])]
-              (if (not (blank? v))
-                (recur)
-                (do
-                  (log log-widget "timeout reached\n")
-                  (stop-listening active-chan keys-chan log-widget te-name))
-                ))
-         )))
-
-    ;; It is important in this scheme to return value to the channel as soon as it had been read:
-    ;; so that others interested can read back
-
+    ;; set up username edit to wait for user input become idle
     (let [te-name (select form [:#username])
           lb-log (select form [:#log])
           active-chan (chan 1)
-          keys-chan (chan 1)]
+          keys-chan (chan 1)
+          stop-listening (fn []
+                           ;; (log lb-log "Stopping listening\n")
+                           (go
+                            (if (<! active-chan)
+                              (do
+                                ;; important to put it back to channel immediately so others could read
+                                (>! active-chan false)
+                                (log lb-log (str "SENDING " (text te-name) "\n")))
+                              ;;(log lb-log "read false from active chan")
+                              )))
+
+          start-listening (fn []
+                            ;;(log lb-log "Starting listening\n")
+                            (go
+                             (>! active-chan true)
+                             (loop []
+                               (let [[v ch] (alts! [keys-chan (timeout 800)])]
+                                 (if (not (blank? v))
+                                   (recur)
+                                   (do
+                              ;;       (log lb-log "timeout reached\n")
+                                     (stop-listening))
+                                   ))
+                               )))]
+      ;; It is important in this scheme to return value to the channel as soon as it had been read:
+      ;; so that others interested can read back
       (listen te-name
               :focus-gained (fn [e]
                               (put! active-chan false)
@@ -71,16 +70,15 @@
                                )
                              (do
                                ;(log lb-log "in not-active mode, initiating listening\n")
-                               (start-listening active-chan keys-chan lb-log te-name))
+                               (start-listening))
                              ))
                           )
               :focus-lost (fn [e]
                             ;(log lb-log "focus lost, stopping\n")
-                            (stop-listening active-chan keys-chan lb-log te-name)
+                            (stop-listening)
                             )
-              )
+              ))
 
-      )
     form)
   )
 

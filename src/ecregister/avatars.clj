@@ -3,9 +3,12 @@
   (:require [org.httpkit.client :as http])
   (:require [clojure.java.io :refer [copy file output-stream input-stream]])
   (:require [clojure.string :refer [blank? lower-case]])
+  (:require [clojure.core.async :refer [put!]])
   (:import [javax.imageio ImageIO])
   (:import [java.awt.image BufferedImage])
   )
+(require '[clojure.core.async :refer [put!]])
+
 
 (defn stamp
   "Fetches, stamps and saves avatars (orig and stamped)"
@@ -26,17 +29,30 @@
 
 (defn get-avatar-url
   "Retrieves an url of user's avatar"
-  [username]
-  (let [{:keys [opts body status error] :as resp} @(http/get (str "http://advaitaworld.com/profile/" username)) ]
-    (if (or error (not= status 200))
-      (println "[get-avatar-url] failed to retrieve url: " (opts :url) (str "[response code = " status "]" ))
-      (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
-            groups (re-find matcher)
-            url (second groups)
-            ext (nth groups 2)
-            ]
-        [url ext]
-      ))))
+  ([username]
+     (let [{:keys [opts body status error] :as resp} @(http/get (str "http://advaitaworld.com/profile/" username)) ]
+       (if (or error (not= status 200))
+         (println "[get-avatar-url] failed to retrieve url: " (opts :url) (str "[response code = " status "]" ))
+         (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
+               groups (re-find matcher)
+               url (second groups)
+               ext (nth groups 2)
+               ]
+           [url ext]
+           ))))
+  ([username chan]
+     (http/get (str "http://advaitaworld.com/profile/" username)
+               (fn [{:keys [opts status body error]}]
+                 (if (or error (not= status 200))
+                   (put! chan "error") ;; error happened
+                   (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
+                         groups (re-find matcher)
+                         url (second groups)
+                         ext (nth groups 2)
+                         ]
+                     (put! chan [url ext])
+                     ))))))
+
 
 (defn fetch-avatar
   "Fetches a user avatar from server and saves it to file"
