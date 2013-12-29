@@ -7,12 +7,10 @@
   (:import [javax.imageio ImageIO])
   (:import [java.awt.image BufferedImage])
   )
-(require '[clojure.core.async :refer [put!]])
-
 
 (defn stamp
   "Fetches, stamps and saves avatars (orig and stamped)"
-  [ name & [base]]
+  [name & [base]]
     (let [username (lower-case name)
           url-result (get-avatar-url username)
           url (first url-result)
@@ -38,8 +36,7 @@
                url (second groups)
                ext (nth groups 2)
                ]
-           [url ext]
-           ))))
+           [url ext]))))
   ([username chan]
      (http/get (str "http://advaitaworld.com/profile/" username)
                (fn [{:keys [opts status body error]}]
@@ -48,10 +45,10 @@
                    (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
                          groups (re-find matcher)
                          url (second groups)
-                         ext (nth groups 2)
-                         ]
+                         ext (nth groups 2)]
                      (put! chan [url ext])
-                     ))))))
+                     ))))
+     chan))
 
 
 (defn fetch-avatar
@@ -90,5 +87,4 @@
         (.drawImage g stamp-img 0 0 nil))
       (ImageIO/write combined "JPEG" (file output-path))
       (println "[stamp-avatar] wrote " output-path)
-      ))
-  )
+      )))

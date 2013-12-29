@@ -2,27 +2,48 @@
   (:gen-class)
   (:use [seesaw.core])
   (:use [seesaw.mig])
+  (:use [seesaw.border])
   (:use [seesaw.widgets.log-window])
   (:require [clojure.string :refer [blank?]])
   (:require [clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
+  (:require [ecregister.avatars :as av])
   )
+(require '[ecregister.avatars :as av])
+(use '[seesaw.border])
 
 ;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
+(defn retrieve-avatar [username lb-log]
+  (when (not (blank? username))
+    (log lb-log (str "retrieving avatar for " username "\n"))
+    (go
+     (let [c (chan)
+           resp (<! (av/get-avatar-url username c))]
+       (log lb-log (str "received response " resp "\n"))))))
 
 (defn build-avatars-tab []
   (let [bg-stamp-pos (button-group)
         form (mig-panel
               :items [[(label "Имя пользователя:") ""]
-                      [(text :id :username :columns 15) "wrap"]
+                      [(text :id :username :columns 15)]
+                      [(label :text "orig"
+                              :border (line-border :color "#ddd" :thickness 1)
+                              :halign :center)
+                       "span 1 3,w 100px::, h 100px::,wrap,top"]
                       [(label "Положение штампа:")]
                       [(flow-panel :items [(radio :id :top :text "Сверху" :group bg-stamp-pos)
                                            (radio :id :bottom :text "Снизу" :group bg-stamp-pos)]) "wrap"]
-                      [(button :text "Проштамповать") "wrap"]
+                      [(button :text "Проштамповать") "wrap,skip 1"]
+                      [(label "") "grow,push,span 2"] ;; empty filler
+                      [(label :text "stamped"
+                              :border (line-border :color "#ddd" :thickness 1)
+                              :halign :center)
+                       "w 100px::, h 100px::,wrap,top,gaptop 10px"]
                       [(scrollable (log-window :id :log
                                                :rows 8
                                                :columns 80
                                                ))
-                       "span"]])]
+                       "span,growx"]]
+              :constraints ["fill", "[][grow][]", ""])]
 
     ;; set up username edit to wait for user input become idle
     (let [te-name (select form [:#username])
@@ -36,9 +57,9 @@
                               (do
                                 ;; important to put it back to channel immediately so others could read
                                 (>! active-chan false)
-                                (log lb-log (str "SENDING " (text te-name) "\n")))
+                                (retrieve-avatar (text te-name) lb-log)
                               ;;(log lb-log "read false from active chan")
-                              )))
+                              ))))
 
           start-listening (fn []
                             ;;(log lb-log "Starting listening\n")
@@ -57,8 +78,7 @@
       ;; so that others interested can read back
       (listen te-name
               :focus-gained (fn [e]
-                              (put! active-chan false)
-                              )
+                              (put! active-chan false))
 
               :document (fn [e]
                           (go
@@ -77,10 +97,8 @@
                             ;(log lb-log "focus lost, stopping\n")
                             (stop-listening)
                             )
-              ))
-
-    form)
-  )
+              )
+      form)))
 
 (defn build-posts-tab []
   (label "Posts"))
