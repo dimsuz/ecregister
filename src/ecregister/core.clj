@@ -19,7 +19,9 @@
 ;;      ;; customize this to liking per dev session needs...
 ;;      "(config! f :content (build-content))")))
 
-(def state (atom {:stamp-type :bottom}))
+(def state (atom {:stamp-type :bottom
+                  :stamp-path {:bottom "/home/dimka/free-away/avatars/stamp_bot.png"
+                               :top    "/home/dimka/free-away/avatars/stamp_top.png"} }))
 (defn update-state [& args]
   (apply swap! state assoc args))
 
@@ -47,7 +49,9 @@
 saves newly stamped to state updates widgets"
   (when-let [image-orig (:image-orig @state)]
     (update-state :image-stamped
-                  (av/stamped image-orig (:stamp-type @state) (:image-ext @state)))
+                  (av/stamped image-orig
+                              (get-in @state [:stamp-path (:stamp-type @state)])
+                              (:image-ext @state)))
     (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))))
 
 (defn build-avatars-tab []

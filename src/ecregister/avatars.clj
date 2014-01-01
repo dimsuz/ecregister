@@ -61,22 +61,18 @@
               nil)
             )))))
 
-(defn stamped [image stamp-type image-ext]
+(defn stamped [image stamp-path image-ext]
   "Stamps passed image with stamp of passed type"
-    (let [
-          stamp-top-path "/home/dimka/free-away/avatars/stamp_top.png"
-          stamp-bot-path "/home/dimka/free-away/avatars/stamp_bot.png"
-          stamp-path (if (= stamp-type :top) stamp-top-path stamp-bot-path)
-          stamp-img (ImageIO/read (file stamp-path))
-          out-width (max (.getWidth image) (.getWidth stamp-img))
-          out-height (max (.getHeight image) (.getHeight stamp-img))
-          need-alpha? (if (re-find #"(png|gif)$" image-ext) true false)
-          combined (BufferedImage. out-width out-height
-                                   (if need-alpha? BufferedImage/TYPE_INT_ARGB BufferedImage/TYPE_INT_RGB))
-          g (.getGraphics combined)]
-      (.drawImage g image 0 0 nil)
-      (.drawImage g stamp-img 0 0 nil)
-      combined))
+  (let [stamp-img (ImageIO/read (file stamp-path))
+        out-width (max (.getWidth image) (.getWidth stamp-img))
+        out-height (max (.getHeight image) (.getHeight stamp-img))
+        need-alpha? (if (re-find #"(png|gif)$" image-ext) true false)
+        combined (BufferedImage. out-width out-height
+                                 (if need-alpha? BufferedImage/TYPE_INT_ARGB BufferedImage/TYPE_INT_RGB))
+        g (.getGraphics combined)]
+    (.drawImage g image 0 0 nil)
+    (.drawImage g stamp-img 0 0 nil)
+    combined))
 
 (defn stamp-avatar
   "Stamps avatar with a provided stamp"
