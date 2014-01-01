@@ -11,33 +11,50 @@
 (require '[ecregister.avatars :as av])
 (use '[seesaw.border])
 
+;; to be evaluated in *scratch*, to be executed in clj buffer
+;; (define-key clojure-mode-map (kbd "C-c SPC")
+;;   (lambda ()
+;;     (interactive)
+;;     (cider-interactive-eval
+;;      ;; customize this to liking per dev session needs...
+;;      "(config! f :content (build-content))")))
+
+
 ;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
-(defn retrieve-avatar [username lb-log]
+(defn prepare-avatars [username lb-log form]
+  "Fetches an avatar from server, fills in image views, stamps it"
   (when (not (blank? username))
     (log lb-log (str "retrieving avatar for " username "\n"))
     (go
      (let [c (chan)
            resp (<! (av/get-avatar-url username c))]
-       (log lb-log (str "received response " resp "\n"))))))
+       (if (= resp :error)
+         (log lb-log (str "failed to retrieve avatar image for '" username "'\n"))
+         (let [image (<! (av/read-image (first resp) c))
+               ext (second resp)]
+           (log lb-log (str "successfully read image, detected extension is '" ext "'\n"))
+           (config! (select form [:#orig-ava]) :icon image)
+           ))
+       ))))
 
 (defn build-avatars-tab []
   (let [bg-stamp-pos (button-group)
         form (mig-panel
               :items [[(label "Имя пользователя:") ""]
                       [(text :id :username :columns 15)]
-                      [(label :text "orig"
+                      [(label :id :orig-ava
                               :border (line-border :color "#ddd" :thickness 1)
                               :halign :center)
-                       "span 1 3,w 100px::, h 100px::,wrap,top"]
+                       "span 1 3,w 105px::, h 105px::,wrap,top"]
                       [(label "Положение штампа:")]
                       [(flow-panel :items [(radio :id :top :text "Сверху" :group bg-stamp-pos)
                                            (radio :id :bottom :text "Снизу" :group bg-stamp-pos)]) "wrap"]
                       [(button :text "Проштамповать") "wrap,skip 1"]
                       [(label "") "grow,push,span 2"] ;; empty filler
-                      [(label :text "stamped"
+                      [(label :id :stamped-ava
                               :border (line-border :color "#ddd" :thickness 1)
                               :halign :center)
-                       "w 100px::, h 100px::,wrap,top,gaptop 10px"]
+                       "w 105px::, h 105px::,wrap,top,gaptop 20px"]
                       [(scrollable (log-window :id :log
                                                :rows 8
                                                :columns 80
@@ -57,8 +74,7 @@
                               (do
                                 ;; important to put it back to channel immediately so others could read
                                 (>! active-chan false)
-                                (retrieve-avatar (text te-name) lb-log)
-                              ;;(log lb-log "read false from active chan")
+                                (retrieve-avatar (text te-name) lb-log form)
                               ))))
 
           start-listening (fn []

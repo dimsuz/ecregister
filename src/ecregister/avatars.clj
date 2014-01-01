@@ -24,7 +24,7 @@
      (http/get (str "http://advaitaworld.com/profile/" username)
                (fn [{:keys [opts status body error]}]
                  (if (or error (not= status 200))
-                   (put! chan "error") ;; error happened
+                   (put! chan :error) ;; error happened
                    (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
                          groups (re-find matcher)
                          url (second groups)
@@ -33,6 +33,14 @@
                      ))))
      chan))
 
+(defn read-image [url chan]
+  "Retrieves and returns an image from url as a BufferedImage and puts in chan either object, or :error"
+  (http/get url {:as :stream}
+            (fn [{:keys [status body error]}]
+              (if (or error (not= status 200))
+                (put! chan :error)
+                (put! chan (ImageIO/read body)))))
+  chan)
 
 (defn fetch-avatar
   "Fetches a user avatar from server and saves it to file"
