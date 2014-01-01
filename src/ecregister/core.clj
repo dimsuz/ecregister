@@ -21,7 +21,10 @@
 
 (def state (atom {:stamp-type :bottom
                   :stamp-path {:bottom "/home/dimka/free-away/avatars/stamp_bot.png"
-                               :top    "/home/dimka/free-away/avatars/stamp_top.png"} }))
+                               :top    "/home/dimka/free-away/avatars/stamp_top.png"}
+                  :save-dir-orig "/home/dimka/free-away/avatars/orig/"
+                  :save-dir-new "/home/dimka/free-away/avatars/new/"
+                  }))
 (defn update-state [& args]
   (apply swap! state assoc args))
 
@@ -52,17 +55,31 @@ saves newly stamped to state updates widgets"
                   (av/stamped image-orig
                               (get-in @state [:stamp-path (:stamp-type @state)])
                               (:image-ext @state)))
-    (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))))
+    (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))
+    (let [filename (str (:username @state) "." (:image-ext @state))]
+      (config! (select form [:#save-label-orig])
+               :text (str (:save-dir-orig @state) filename))
+      (config! (select form [:#save-label-new])
+               :text (str (:save-dir-new @state) filename)))))
 
 (defn build-avatars-tab []
   (let [bg-stamp-pos (button-group)
         form (mig-panel
               :items [[(label "Имя пользователя:") ""]
                       [(text :id :username :columns 15)]
-                      [(label :id :orig-ava
-                              :border (line-border :color "#ddd" :thickness 1)
-                              :halign :center)
-                       "span 1 3,w 105px::, h 105px::,wrap,top"]
+                      [(vertical-panel
+                        :items [(label :id :orig-ava
+                                       :border (line-border :color "#ddd" :thickness 1)
+                                       :halign :center
+                                       :valign :center
+                                       :size [106 :by 106]) [:fill-v 10]
+                                (label :id :stamped-ava
+                                       :border (line-border :color "#ddd" :thickness 1)
+                                       :halign :center
+                                       :valign :center
+                                       :size [106 :by 106]
+                                       )])
+                       "span 1 7,wrap,top"]
                       [(label "Положение штампа:")]
                       [(flow-panel :items [(radio :id :top
                                                   :text "Сверху"
@@ -73,12 +90,20 @@ saves newly stamped to state updates widgets"
                                                   :group bg-stamp-pos
                                                   :selected? (= :bottom (:stamp-type @state))
                                                   )]) "wrap"]
+                      [(label
+                        :foreground "#bbb"
+                        :font "Terminus"
+                        :text "Аватарки будут сохранены в:") "span 2,wrap"]
+                      [(label :id :save-label-orig
+                              :font "Terminus"
+                              :foreground "#bbb"
+                              :text (:save-dir-orig @state)) "span 2,wrap"]
+                      [(label :id :save-label-new
+                              :font "Terminus"
+                              :foreground "#bbb"
+                              :text (:save-dir-new @state)) "span 2,wrap"]
                       [(button :text "Проштамповать") "wrap,skip 1"]
-                      [(label "") "grow,push,span 2"] ;; empty filler
-                      [(label :id :stamped-ava
-                              :border (line-border :color "#ddd" :thickness 1)
-                              :halign :center)
-                       "w 105px::, h 105px::,wrap,top,gaptop 20px"]
+                      [(label "") "grow,push,span 2,wrap"] ;; empty filler
                       [(scrollable (log-window :id :log
                                                :rows 8
                                                :columns 80
@@ -96,6 +121,7 @@ saves newly stamped to state updates widgets"
                             (do
                               ;; important to put it back to channel immediately so others could read
                               (>! active-chan false)
+                              (update-state :username (text te-name))
                               (prepare-avatars (text te-name) lb-log form)
                               ))))
 
