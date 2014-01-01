@@ -8,23 +8,6 @@
   (:import [java.awt.image BufferedImage])
   )
 
-(defn stamp
-  "Fetches, stamps and saves avatars (orig and stamped)"
-  [name & [base]]
-    (let [username (lower-case name)
-          url-result (get-avatar-url username)
-          url (first url-result)
-          ext (second url-result)
-          ava-orig-path (str "/home/dimka/free-away/avatars/orig/" username (str "." ext))
-          ava-new-path (str "/home/dimka/free-away/avatars/new/" username ".jpg")
-          stamp-top-path "/home/dimka/free-away/avatars/stamp_top.png"
-          stamp-bot-path "/home/dimka/free-away/avatars/stamp_bot.png"
-          use-top? (= "top" base)
-          stamp-path (if use-top? stamp-top-path stamp-bot-path)
-          ]
-      (if use-top? (println "[main] using top stamp") (println "using bottom stamp"))
-      (stamp-avatar (fetch-avatar url ava-orig-path) stamp-path ava-new-path)))
-
 (defn get-avatar-url
   "Retrieves an url of user's avatar"
   ([username]
@@ -88,3 +71,20 @@
       (ImageIO/write combined "JPEG" (file output-path))
       (println "[stamp-avatar] wrote " output-path)
       )))
+
+(defn stamp
+  "Fetches, stamps and saves avatars (orig and stamped)"
+  [name & [base]]
+    (let [username (lower-case name)
+          url-result (get-avatar-url username)
+          url (first url-result)
+          ext (second url-result)
+          ava-orig-path (str "/home/dimka/free-away/avatars/orig/" username (str "." ext))
+          ava-new-path (str "/home/dimka/free-away/avatars/new/" username ".jpg")
+          stamp-top-path "/home/dimka/free-away/avatars/stamp_top.png"
+          stamp-bot-path "/home/dimka/free-away/avatars/stamp_bot.png"
+          use-top? (= "top" base)
+          stamp-path (if use-top? stamp-top-path stamp-bot-path)
+          ]
+      (if use-top? (println "[main] using top stamp") (println "using bottom stamp"))
+      (stamp-avatar (fetch-avatar url ava-orig-path) stamp-path ava-new-path)))
