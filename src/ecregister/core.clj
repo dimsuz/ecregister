@@ -19,6 +19,9 @@
 ;;      ;; customize this to liking per dev session needs...
 ;;      "(config! f :content (build-content))")))
 
+(def state (atom {:stamp-type :bottom}))
+(defn update-state [& args]
+  (apply swap! state assoc args))
 
 ;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
 (defn prepare-avatars [username lb-log form]
@@ -31,9 +34,12 @@
        (if (= resp :error)
          (log lb-log (str "failed to retrieve avatar image for '" username "'\n"))
          (let [image (<! (av/read-image (first resp) c))
-               ext (second resp)]
+               ext (second resp)
+               stamped-image (av/stamped image (:stamp-type @state) ext)]
            (log lb-log (str "successfully read image, detected extension is '" ext "'\n"))
+           (log lb-log (str "type is '" (.getType stamped-image) "'\n"))
            (config! (select form [:#orig-ava]) :icon image)
+           (config! (select form [:#stamped-ava]) :icon stamped-image)
            ))
        ))))
 
@@ -74,7 +80,7 @@
                               (do
                                 ;; important to put it back to channel immediately so others could read
                                 (>! active-chan false)
-                                (retrieve-avatar (text te-name) lb-log form)
+                                (prepare-avatars (text te-name) lb-log form)
                               ))))
 
           start-listening (fn []
