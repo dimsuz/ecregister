@@ -28,6 +28,21 @@
 (defn update-state [& args]
   (apply swap! state assoc args))
 
+(defn update-stamped-image [form]
+  "Gets an image from state, [re]stamps it according to state config,
+saves newly stamped to state updates widgets"
+  (when-let [image-orig (:image-orig @state)]
+    (update-state :image-stamped
+                  (av/stamped image-orig
+                              (get-in @state [:stamp-path (:stamp-type @state)])
+                              (:image-ext @state)))
+    (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))
+    (let [filename (str (:username @state) "." (:image-ext @state))]
+      (config! (select form [:#save-label-orig])
+               :text (str (:save-dir-orig @state) filename))
+      (config! (select form [:#save-label-new])
+               :text (str (:save-dir-new @state) filename)))))
+
 ;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
 (defn prepare-avatars [username lb-log form]
   "Fetches an avatar from server, fills in image views, stamps it"
@@ -46,21 +61,6 @@
            (update-stamped-image form)
            ))
        ))))
-
-(defn update-stamped-image [form]
-  "Gets an image from state, [re]stamps it according to state config,
-saves newly stamped to state updates widgets"
-  (when-let [image-orig (:image-orig @state)]
-    (update-state :image-stamped
-                  (av/stamped image-orig
-                              (get-in @state [:stamp-path (:stamp-type @state)])
-                              (:image-ext @state)))
-    (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))
-    (let [filename (str (:username @state) "." (:image-ext @state))]
-      (config! (select form [:#save-label-orig])
-               :text (str (:save-dir-orig @state) filename))
-      (config! (select form [:#save-label-new])
-               :text (str (:save-dir-new @state) filename)))))
 
 (defn build-avatars-tab []
   (let [bg-stamp-pos (button-group)
