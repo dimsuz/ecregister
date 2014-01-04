@@ -19,14 +19,16 @@
 ;;      ;; customize this to liking per dev session needs...
 ;;      "(config! f :content (build-content))")))
 
-(def state (atom {:stamp-type :bottom
-                  :stamp-path {:bottom "/home/dimka/free-away/avatars/stamp_bot.png"
-                               :top    "/home/dimka/free-away/avatars/stamp_top.png"}
-                  :save-dir-orig "/home/dimka/free-away/avatars/orig/"
-                  :save-dir-new "/home/dimka/free-away/avatars/new/"
-                  }))
+(def state (atom {}))
 (defn update-state [& args]
   (apply swap! state assoc args))
+(defn reset-state []
+  (reset! state {:stamp-type :bottom
+                :stamp-path {:bottom "/home/dimka/free-away/avatars/stamp_bot.png"
+                             :top    "/home/dimka/free-away/avatars/stamp_top.png"}
+                :save-dir-orig "/home/dimka/free-away/avatars/orig/"
+                :save-dir-new "/home/dimka/free-away/avatars/new/"
+                }))
 
 (defn update-stamped-image [form]
   "Gets an image from state, [re]stamps it according to state config,
@@ -63,6 +65,7 @@ saves newly stamped to state updates widgets"
        ))))
 
 (defn build-avatars-tab []
+  (reset-state)
   (let [bg-stamp-pos (button-group)
         form (mig-panel
               :items [[(label "Имя пользователя:") ""]
@@ -102,7 +105,7 @@ saves newly stamped to state updates widgets"
                               :font "Terminus"
                               :foreground "#bbb"
                               :text (:save-dir-new @state)) "span 2,wrap"]
-                      [(button :text "Проштамповать") "wrap,skip 1"]
+                      [(button :id :button-stamp :text "Проштамповать") "wrap,skip 1"]
                       [(label "") "grow,push,span 2,wrap"] ;; empty filler
                       [(scrollable (log-window :id :log
                                                :rows 8
@@ -112,6 +115,8 @@ saves newly stamped to state updates widgets"
               :constraints ["fill", "[][grow][]", ""])
         te-name (select form [:#username])
         lb-log (select form [:#log])
+        button-stamp (select form [:#button-stamp])
+        have-images? #(and (contains? @state :image-orig) (contains? @state :image-stamped))
         active-chan (chan 1)
         keys-chan (chan 1)
         stop-listening (fn []
@@ -164,6 +169,18 @@ saves newly stamped to state updates widgets"
                   (update-state :stamp-type (config s :id))
                   (update-stamped-image form)
                   ))))
+    (listen button-stamp :action
+            (fn [e]
+              (when (have-images?)
+                (let [args1 [(:save-dir-orig @state) (:username @state) (:image-orig @state)]
+                      args2 [(:save-dir-new @state) (:username @state) (:image-stamped @state)]
+                      file1 (apply av/write-image args1)
+                      file2 (apply av/write-image args2)]
+                  (log lb-log (str "Saved " (:save-dir-orig @state) file1 "\n"))
+                  (log lb-log (str "Saved " (:save-dir-new @state) file2 "\n"))
+                  )
+                )
+              ))
     form))
 
 (defn build-posts-tab []
