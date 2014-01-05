@@ -3,13 +3,12 @@
   (:use [seesaw.core])
   (:use [seesaw.mig])
   (:use [seesaw.border])
+  (:use [seesaw.swingx])
   (:use [seesaw.widgets.log-window])
   (:require [clojure.string :refer [blank?]])
   (:require [clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
   (:require [ecregister.avatars :as av])
   )
-(require '[ecregister.avatars :as av])
-(use '[seesaw.border])
 
 ;; to be evaluated in *scratch*, to be executed in clj buffer
 ;; (define-key clojure-mode-map (kbd "C-c SPC")
@@ -45,7 +44,24 @@ saves newly stamped to state updates widgets"
       (config! (select form [:#save-label-new])
                :text (str (:save-dir-new @state) filename)))))
 
-;;(require '[clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
+(defn show-busy-indicators [show? form]
+  (let [label-ava-orig (select form [:#orig-ava])
+        label-ava-stamped (select form [:#stamped-ava])]
+    (if show?
+      (do
+        (config! label-ava-orig :icon (config label-ava-orig :user-data))
+        (config! label-ava-orig :busy? true)
+        (config! label-ava-stamped :icon (config label-ava-stamped :user-data))
+        (config! label-ava-stamped :busy? true))
+      (do
+        ;; save their custom icons and temporarily replace them with nil ones
+        ;; this is done to hide busy indicator on start and let it by shown only later before busy anim is launched
+        (config! label-ava-orig :user-data (config label-ava-orig :icon))
+        (config! label-ava-orig :icon nil)
+        (config! label-ava-stamped :user-data (config label-ava-stamped :icon))
+        (config! label-ava-stamped :icon nil)
+        ))))
+
 (defn prepare-avatars [username lb-log form]
   "Fetches an avatar from server, fills in image views, stamps it"
   (when (not (blank? username))
@@ -53,6 +69,7 @@ saves newly stamped to state updates widgets"
     (go
      (let [c (chan)
            resp (<! (av/get-avatar-url username c))]
+       (show-busy-indicators false form)
        (if (= resp :error)
          (log lb-log (str "failed to retrieve avatar image for '" username "'\n"))
          (let [image (<! (av/read-image (first resp) c))
@@ -71,12 +88,12 @@ saves newly stamped to state updates widgets"
               :items [[(label "Имя пользователя:") ""]
                       [(text :id :username :columns 15)]
                       [(vertical-panel
-                        :items [(label :id :orig-ava
+                        :items [(busy-label :id :orig-ava
                                        :border (line-border :color "#ddd" :thickness 1)
                                        :halign :center
                                        :valign :center
                                        :size [106 :by 106]) [:fill-v 10]
-                                (label :id :stamped-ava
+                                (busy-label :id :stamped-ava
                                        :border (line-border :color "#ddd" :thickness 1)
                                        :halign :center
                                        :valign :center
@@ -127,6 +144,7 @@ saves newly stamped to state updates widgets"
                               ;; important to put it back to channel immediately so others could read
                               (>! active-chan false)
                               (update-state :username (text te-name))
+                              (show-busy-indicators true form)
                               (prepare-avatars (text te-name) lb-log form)
                               ))))
 
@@ -181,6 +199,7 @@ saves newly stamped to state updates widgets"
                   )
                 )
               ))
+    (show-busy-indicators false form)
     form))
 
 (defn build-posts-tab []
