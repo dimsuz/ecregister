@@ -219,13 +219,12 @@ saves newly stamped to state updates widgets"
    :title "Free Away Admin"
    :on-close :hide
    :size [640 :by 480]
-   :content (label "hello") ;; TODO replace label => (build-content)
+   :content (build-content)
    ))
 
 (def f (make-frame (build-content)))
 (show! f)
 (config! f :content (build-content))
-
 
 (defn -main [& args]
   (invoke-later
