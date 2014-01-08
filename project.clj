@@ -9,4 +9,6 @@
                  [seesaw "1.4.4"]]
   :main ^:skip-aot ecregister.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}})
+  :profiles {:uberjar {:aot :all}
+             :dev {:dependencies [[midje "1.6.0"]]
+                   :plugins [[lein-midje "3.1.1"]]}})
