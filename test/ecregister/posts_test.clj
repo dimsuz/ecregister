@@ -10,15 +10,12 @@
   (f chan)
   (first (async/alts!! [chan (async/timeout 1000)])))
 
+
 (fact "'fetch-latest-fa-posts' posts an array of two elements or none if error"
   (wait-res posts/fetch-latest-fa-posts (async/chan)) => (two-of map?)
-  (provided (get-html) => "some html")
+  (provided (get-html) => (async/chan))
   )
 
-     ;.;. Actual: [{} {}]
-   ;.;. Expected: nil
-;.;. FAIL "'fetch-latest-fa-posts' posts nil if error" at (form-init7498411983388437042.clj:3)
-;.;. nil
 (fact "'fetch-latest-fa-posts' posts nil if error"
   (wait-res posts/fetch-latest-fa-posts (async/chan)) => nil
   (provided (get-html) => nil)
