@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/core.async "0.1.267.0-0d7780-alpha"]
                  [http-kit "2.1.12"]
-                 [seesaw "1.4.4"]]
+                 [seesaw "1.4.4"]
+                 [enlive "1.1.5"]]
   :main ^:skip-aot ecregister.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}

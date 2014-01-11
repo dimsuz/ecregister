@@ -222,9 +222,9 @@ saves newly stamped to state updates widgets"
    :content (build-content)
    ))
 
-(def f (make-frame (build-content)))
-(show! f)
-(config! f :content (build-content))
+;; (def f (make-frame (build-content)))
+;; (show! f)
+;; (config! f :content (build-content))
 
 (defn -main [& args]
   (invoke-later
