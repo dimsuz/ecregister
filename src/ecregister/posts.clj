@@ -31,6 +31,13 @@
               second),
      :title title, :content content}))
 
+(defn extract-aw-posts [html-string]
+  (let [tree (html/html-resource (java.io.StringReader. html-string))
+        topics (html/select tree [#{:content :.topic-container}])]
+    (count topics)
+    )
+  )
+
 (defn fetch-latest-fa-posts [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
   (let [parsed-html-chan (chan)]
