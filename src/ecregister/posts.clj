@@ -18,12 +18,22 @@
                 (put! c body))))
     c))
 
+(defn link-ids [link-nodes]
+  (map (fn [node]
+         (->> (first (html/attr-values node :href))
+              (re-seq #".+?(\d+)\.html?")
+              first
+              second)
+         )
+       link-nodes)
+  )
+
 (defn extract-fa-post [html-string]
   "Extracts a most recent post data from a given string with html content of freeaway.ru page with articles list"
   (let [tree (html/html-resource (java.io.StringReader. html-string))
         author (html/text (first (html/select tree [:a.author-link])))
         title (html/text (first (html/select tree [:.article-content :> :h1])))
-        content (html/text (first (html/select tree [:.article-content :> :p])))
+        link (first (link-ids (html/select tree [:.article-links :a])))
         ]
     ;; this is how to turn some part of subtree into a html
     ;;(prn (apply str (html/emit* [(first (html/select tree [:.article-content]))])))
@@ -31,22 +41,19 @@
               (re-seq #".+\((\w+)\).*")
               first
               second),
-     :title title, :content content}))
+     :id link,
+     :title title}))
 
 (defn extract-aw-posts [html-string]
-  (prn "extracting posts " html-string)
-  (map #(conj {} [:content (str html-string %)]) (range 10))
-  ;; (let [tree (html/html-resource (java.io.StringReader. html-string))
-  ;;       topics (html/select tree [#{:content :.topic-container}])]
-  ;;   (count topics)
-  ;;   )
+  ;;;(prn "extracting posts " html-string)
+  (let [tree (html/html-resource (java.io.StringReader. html-string))
+        authors (map html/text (html/select tree [#{:.content :.topic-container} :.topic-header (html/attr= :rel "author")]))
+        titles (map html/text (html/select tree [:.topic-title :> :a]))
+        ids (link-ids (html/select tree [:.topic-title :> :a]))
+        ]
+    (map #(zipmap [:author :title :id] [%1 %2 %3]) authors titles ids)
+    )
   )
-
-;; (defn get-html-t [url]
-;;   (let [c (chan)]
-;;     (prn "fetching " url)
-;;     (put! c "<h2></h2>")
-;;     c))
 
 (defn take-until [pred coll]
   "Takes items from sequence until pred is true. Item on which pred becomes false is included as last one."
@@ -65,11 +72,10 @@ and seq will be returned"
 ;    (prn (take-until (complement published?) posts))
     (map #(conj % [:published (published? %)]) (take-until (complement published?) posts))))
 
-;.;. For every disciplined effort, there is a multiple reward. -- Rohn
 (defn fetch-unpublished-aw-posts [fa-post out-chan]
   (go-loop [page 1 unpub []]
            (prn "fetching posts for page " page)
-           (if-let [posts (extract-aw-posts (<! (get-html-t (str "http://advaitaworld.com/blog/free-away/page" page))))]
+           (if-let [posts (extract-aw-posts (<! (get-html (str "http://advaitaworld.com/blog/free-away/page" page))))]
              (let [marked (mark-published posts fa-post)]
                (if (:published (last marked))
                  (prn "found all unpublished " (concat unpub (drop-last marked))) ;; TODO put to chan, return
@@ -97,10 +103,15 @@ and seq will be returned"
        ;; note: when finding latest of two posts relying on these facts here:
        ;; a) id's are strings which are actually numbers
        ;; b) more recent posts contain bigger ids, i.e. they grow with time
-       (put! out-chan (last (sort-by #(Integer/parseInt (:id %) [p1 p2]))))))
+       (put! out-chan (last (sort-by #(Integer/parseInt (:id %)) [p1 p2])))))
     ))
 
 ;; (let [tc (chan)]
-;;   (fetch-latest-fa-posts tc)
-;;   (prn "Launched eval")
-;;   (prn (<!! tc)))
+;;   (fetch-latest-fa-post tc)
+;;   (prn "Launched fetching")
+;;   (let [fa-post (<!! tc)]
+;;     (fetch-unpublished-aw-posts fa-post tc)
+;;     (prn (<!! tc))
+;;     )
+
+;;   )
