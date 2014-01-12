@@ -18,15 +18,19 @@
                 (put! c body))))
     c))
 
-(defn link-ids [link-nodes]
+(defn link-hrefs [link-nodes]
   (map (fn [node]
-         (->> (first (html/attr-values node :href))
+         (first (html/attr-values node :href)))
+       link-nodes))
+
+(defn link-ids [link-nodes]
+  (map (fn [href]
+         (->> href
               (re-seq #".+?(\d+)\.html?")
               first
               second)
          )
-       link-nodes)
-  )
+       (link-hrefs link-nodes)))
 
 (defn extract-fa-post [html-string]
   "Extracts a most recent post data from a given string with html content of freeaway.ru page with articles list"
@@ -45,13 +49,13 @@
      :title title}))
 
 (defn extract-aw-posts [html-string]
-  ;;;(prn "extracting posts " html-string)
   (let [tree (html/html-resource (java.io.StringReader. html-string))
         authors (map html/text (html/select tree [#{:.content :.topic-container} :.topic-header (html/attr= :rel "author")]))
         titles (map html/text (html/select tree [:.topic-title :> :a]))
         ids (link-ids (html/select tree [:.topic-title :> :a]))
+        links (link-hrefs (html/select tree [:.topic-title :> :a]))
         ]
-    (map #(zipmap [:author :title :id] [%1 %2 %3]) authors titles ids)
+    (map #(zipmap [:author :title :id :link] [%1 %2 %3 %4]) authors titles ids links)
     )
   )
 
@@ -78,17 +82,13 @@ and seq will be returned"
            (if-let [posts (extract-aw-posts (<! (get-html (str "http://advaitaworld.com/blog/free-away/page" page))))]
              (let [marked (mark-published posts fa-post)]
                (if (:published (last marked))
-                 (prn "found all unpublished " (concat unpub (drop-last marked))) ;; TODO put to chan, return
+                 (put! out-chan [(concat unpub (drop-last marked)) page])
                  (if (< page max-page-depth)
                    (recur (inc page) (concat unpub marked))  ;; no published posts on this page return
-                   (prn "Searched" max-page-depth "pages, didn't find recent posts...")) ;; TODO put error to chan
+                   (put! out-chan [:error page]))
                  )
                )
-             (prn "Failed to retrieve posts") ;; TODO put error to chan
-             )
-    )
-  (<!! out-chan)
-  )
+             (put! out-chan [:error page]))))
 
 (defn fetch-latest-fa-post [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
