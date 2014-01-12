@@ -32,10 +32,37 @@
     (:author parsed) => "Floret"
     (:title parsed) => "На своих местах!!"
     (:content parsed) => (has-prefix "Всё всегда на своих")
+    (:id parsed) => "29665"
     ))
-
 
 (fact "'extract-aw-posts' does correct parsing"
   (let [TEST_HTML (slurp "./test/ecregister/blog-topics.html")]
     (extract-aw-posts TEST_HTML)) => nil
   )
+
+(facts "'mark-published'"
+  (let [posts [{:author "Floret", :id "3022"},
+               {:author "Ia-ha", :id "3353"}
+               {:author "Shine", :id "3354"}]
+        pub? (fn [p] (:published p))
+        unpub? (complement pub?)
+        strip-marks (fn [plist] (map #(dissoc % :published) posts))]
+    (fact "returns same data marked unpublished if no published found"
+      (mark-published posts {:author "NgoMa", :id "33"}) => (has every? unpub?)
+      (strip-marks (mark-published posts {:author "NgoMa", :id "33"})) => posts)
+    (fact "stops at last published which is found"
+      (mark-published posts {:author "Ia-ha", :id "3353"}) => (just unpub? pub?))
+    (fact "returns single item list if very first is published"
+      (mark-published posts {:author "Floret", :id "3022"}) => (just pub?))
+    (fact "returns empty list if empty posts array passed"
+      (mark-published [] {:author "Floret", :id "3022"}) => [])
+    (fact "returns marks all unpublished if no fa-post passed"
+      (mark-published posts nil) => (has every? unpub?)
+      (mark-published posts {}) => (has every? unpub?)
+    )
+    (fact "returns all as unpublished if missing :ids or :authors"
+      (mark-published [{:content "abracad"} {:content "abrac1"}]
+                      {:author "Ia-ha", :id "3353"}) => (just unpub? unpub?)
+      )
+    )
+)

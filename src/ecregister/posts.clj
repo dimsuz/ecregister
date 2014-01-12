@@ -2,9 +2,11 @@
   (:gen-class)
   (:require [org.httpkit.client :as http])
   (:require [net.cgrand.enlive-html :as html])
-  (:use [clojure.core.async])
+  (:use [clojure.core.async :only [chan put! >! <! <!! go go-loop]])
   )
-(require '[net.cgrand.enlive-html :as html])
+
+;; How deep into AW posts history we are allowed to enter?
+(def max-page-depth 32)
 
 (defn get-html [url]
   "Fetches html and returns an unbuffered channel to which response will be put when ready"
@@ -32,13 +34,57 @@
      :title title, :content content}))
 
 (defn extract-aw-posts [html-string]
-  (let [tree (html/html-resource (java.io.StringReader. html-string))
-        topics (html/select tree [#{:content :.topic-container}])]
-    (count topics)
-    )
+  (prn "extracting posts " html-string)
+  (map #(conj {} [:content (str html-string %)]) (range 10))
+  ;; (let [tree (html/html-resource (java.io.StringReader. html-string))
+  ;;       topics (html/select tree [#{:content :.topic-container}])]
+  ;;   (count topics)
+  ;;   )
   )
 
-(defn fetch-latest-fa-posts [out-chan]
+;; (defn get-html-t [url]
+;;   (let [c (chan)]
+;;     (prn "fetching " url)
+;;     (put! c "<h2></h2>")
+;;     c))
+
+(defn take-until [pred coll]
+  "Takes items from sequence until pred is true. Item on which pred becomes false is included as last one."
+  (let [[part1 part2] (split-with pred coll)]
+    (concat part1 (take 1 part2)))
+      )
+
+(defn mark-published [posts fa-post]
+  "Iterates a list of posts, appending :published [true|false] key to each of them.
+If 'posts' contain a published post it will be marked as such, included as a last item
+and seq will be returned"
+  (let [published? (fn [p]
+                     (let [id1 (:id p) id2 (:id fa-post)
+                           author1 (:author p) author2 (:author fa-post)]
+                       (and (not (nil? id1)) (not (nil? author1)) (= id1 id2) (= author1 author2))))]
+;    (prn (take-until (complement published?) posts))
+    (map #(conj % [:published (published? %)]) (take-until (complement published?) posts))))
+
+;.;. For every disciplined effort, there is a multiple reward. -- Rohn
+(defn fetch-unpublished-aw-posts [fa-post out-chan]
+  (go-loop [page 1 unpub []]
+           (prn "fetching posts for page " page)
+           (if-let [posts (extract-aw-posts (<! (get-html-t (str "http://advaitaworld.com/blog/free-away/page" page))))]
+             (let [marked (mark-published posts fa-post)]
+               (if (:published (last marked))
+                 (prn "found all unpublished " (concat unpub (drop-last marked))) ;; TODO put to chan, return
+                 (if (< page max-page-depth)
+                   (recur (inc page) (concat unpub marked))  ;; no published posts on this page return
+                   (prn "Searched" max-page-depth "pages, didn't find recent posts...")) ;; TODO put error to chan
+                 )
+               )
+             (prn "Failed to retrieve posts") ;; TODO put error to chan
+             )
+    )
+  (<!! out-chan)
+  )
+
+(defn fetch-latest-fa-post [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
   (let [parsed-html-chan (chan)]
     (go
@@ -48,7 +94,10 @@
     (go
      (let [p1 (<! parsed-html-chan)
            p2 (<! parsed-html-chan)]
-       (put! out-chan [p1 p2])))
+       ;; note: when finding latest of two posts relying on these facts here:
+       ;; a) id's are strings which are actually numbers
+       ;; b) more recent posts contain bigger ids, i.e. they grow with time
+       (put! out-chan (last (sort-by #(Integer/parseInt (:id %) [p1 p2]))))))
     ))
 
 ;; (let [tc (chan)]
