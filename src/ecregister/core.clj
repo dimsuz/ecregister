@@ -8,6 +8,7 @@
   (:require [clojure.string :refer [blank?]])
   (:require [clojure.core.async :refer [chan >!! <!! <! >! alts!! alts! timeout thread put! go go-loop close!]])
   (:require [ecregister.avatars :as av])
+  (:require [ecregister.posts_ui :as pui])
   )
 
 ;; to be evaluated in *scratch*, to be executed in clj buffer
@@ -202,15 +203,12 @@ saves newly stamped to state updates widgets"
     (show-busy-indicators false form)
     form))
 
-(defn build-posts-tab []
-  (label "Posts"))
-
 (defn build-content []
   (horizontal-panel
    :items [(tabbed-panel
             :placement :bottom
-            :tabs [ {:title "Аватарки" :content (build-avatars-tab)}
-                    {:title "Посты" :content (build-posts-tab)}])
+            :tabs [ ;;{:title "Аватарки" :content (build-avatars-tab)}
+                    {:title "Посты" :content (pui/build-posts-tab)}])
            ]))
 
 (defn make-frame [content]
