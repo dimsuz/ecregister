@@ -17,7 +17,7 @@
 ;;     (interactive)
 ;;     (cider-interactive-eval
 ;;      ;; customize this to liking per dev session needs...
-;;      "(config! f :content (build-content))")))
+;;      "(config! ecregister.core/f :content (ecregister.core/build-content))")))
 
 (def state (atom {}))
 (defn update-state [& args]
