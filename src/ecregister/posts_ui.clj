@@ -19,10 +19,12 @@
            [(label :id :title :text title :font (font :name "Arial" :style :italic :size 15)) "cell 1 1,pushy,top"]]
    :constraints ["", "[][]", "[][]"]
    :border (line-border :color "#ccc" :thickness 1)
-   :minimum-size [400 :by 0]))
+   :minimum-size [400 :by 60]))
 
 (defn setup-events [form event-stream]
-  (let [fa-stream (r/filter #(= :fa-post (:id %)) event-stream)]
+  (let [fa-stream (r/filter #(= :fa-post (:id %)) event-stream)
+        fa-post-stream (r/filter #(map? (:value %)) fa-stream)]
+    ;; setup 'latest post' label and progressbar
     (r/map (fn [e]
              ;; TODO use cond
              (if (= :wait (:value e))
@@ -34,7 +36,19 @@
                  (config! (select form [:#faprog]) :visible? false)
                  (config! (select form [:#latest-fa-post]) :visible? true)
                  )))
-           fa-stream)))
+           fa-stream)
+    ;; setup 'fetching from aw'
+    (r/map (fn [e]
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he1" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
+             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"})))
+           fa-post-stream)
+    ))
 
 (defn launch-tab [event-stream]
   (let [c (async/chan)]
@@ -49,8 +63,9 @@
          :items [[(label "Последний опубликованный пост") "top,center,wrap"]
                  [(progress-bar :id :faprog :indeterminate? false :value 10) "center,wrap"]
                  [(make-post-widget {:id :latest-fa-post :author "" :title "" :visible? false}) "center,wrap"]
+                 [(scrollable (grid-panel :border 8 :id :aw-posts :vgap 10 :columns 1)) "grow,pushy"]
                  ]
-         :constraints ["fillx,gap 18px,hidemode 3"])
+         :constraints ["fill,gap 18px,hidemode 3"])
         evs (r/events)]
     (setup-events form evs)
     (launch-tab evs)
