@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [org.httpkit.client :as http])
   (:require [net.cgrand.enlive-html :as html])
+  (:use [clojure.string :only [lower-case]])
   (:use [clojure.core.async :only [chan put! >! <! <!! go go-loop]])
   )
 
@@ -38,13 +39,15 @@
         author (html/text (first (html/select tree [:a.author-link])))
         title (html/text (first (html/select tree [:.article-content :> :h1])))
         link (first (link-ids (html/select tree [:.article-links :a])))
+        ;; for internal circle format is "Name (nick)", for external - just "nick"
+        ic-name (->> author
+                     (re-seq #".+\((\w+)\).*")
+                     first
+                     second)
         ]
     ;; this is how to turn some part of subtree into a html
     ;;(prn (apply str (html/emit* [(first (html/select tree [:.article-content]))])))
-    {:author (->> author
-              (re-seq #".+\((\w+)\).*")
-              first
-              second),
+    {:author (if ic-name ic-name author),
      :id link,
      :title title}))
 
@@ -72,7 +75,7 @@ and seq will be returned"
   (let [published? (fn [p]
                      (let [id1 (:id p) id2 (:id fa-post)
                            author1 (:author p) author2 (:author fa-post)]
-                       (and (not (nil? id1)) (not (nil? author1)) (= id1 id2) (= author1 author2))))]
+                       (and (not (nil? id1)) (not (nil? author1)) (= id1 id2) (= (lower-case author1) (lower-case author2)))))]
 ;    (prn (take-until (complement published?) posts))
     (map #(conj % [:published (published? %)]) (take-until (complement published?) posts))))
 
