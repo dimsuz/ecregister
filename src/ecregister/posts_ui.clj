@@ -12,7 +12,7 @@
 (defn make-post-widget [{:keys [id author title icon visible?]}]
   (mig-panel
    :id id
-   :visible? visible?
+   :visible? (if (nil? visible?) true visible?)
    :items [[(label :border (line-border :color "#ddd" :thickness 1) :size [42 :by 42]) "spany 2"]
            [(label :id :author :text author :font (font :name "Arial" :style :bold :size 17))
             "cell 1 0,pushy,bottom"]
