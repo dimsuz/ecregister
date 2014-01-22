@@ -80,18 +80,21 @@ and seq will be returned"
     (map #(conj % [:published (published? %)]) (take-until (complement published?) posts))))
 
 (defn fetch-unpublished-aw-posts [fa-post out-chan]
-  (go-loop [page 1 unpub []]
+  (go-loop [page 1]
            (prn "fetching posts for page " page)
            (if-let [posts (extract-aw-posts (<! (get-html (str "http://advaitaworld.com/blog/free-away/page" page))))]
-             (let [marked (mark-published posts fa-post)]
-               (if (:published (last marked))
-                 (put! out-chan [(concat unpub (drop-last marked)) page])
+             (let [marked (mark-published posts fa-post)
+                   has-published? (:published (last marked))
+                   unpublished (if has-published? (drop-last marked) marked)]
+               ;; spit all unpub posts on this page into channel
+               (doseq [post unpublished]
+                      (put! out-chan post))
+               (if has-published?
+                 (put! out-chan :end)
                  (if (< page max-page-depth)
-                   (recur (inc page) (concat unpub marked))  ;; no published posts on this page return
-                   (put! out-chan [:error page]))
-                 )
-               )
-             (put! out-chan [:error page]))))
+                   (recur (inc page))  ;; no published posts on this page return
+                   (put! out-chan :error))))
+             (put! out-chan :error))))
 
 (defn fetch-latest-fa-post [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
@@ -114,7 +117,8 @@ and seq will be returned"
 ;;   (prn "Launched fetching")
 ;;   (let [fa-post (<!! tc)]
 ;;     (fetch-unpublished-aw-posts fa-post tc)
-;;     (prn (<!! tc))
-;;     )
-
-;;   )
+;;     (loop []
+;;       (let [p (<!! tc)]
+;;         (when (not= p :end)
+;;           (prn p)
+;;           (recur))))))
