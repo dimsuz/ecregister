@@ -60,13 +60,20 @@
     (async/go
      (r/push! event-stream {:id :fa-post, :value (async/<! c)}))))
 
+(defn my-scrollable [& args]
+  (let [s (apply scrollable args)]
+    (-> s
+        (.getVerticalScrollBar)
+        (.setUnitIncrement 18))
+    s))
+
 (defn build-posts-tab []
   (let [form
         (mig-panel
          :items [[(label "Последний опубликованный пост") "top,center,wrap"]
                  [(progress-bar :id :faprog :indeterminate? false :value 10) "center,wrap"]
                  [(make-post-widget {:id :latest-fa-post :author "" :title "" :visible? false}) "center,wrap"]
-                 [(scrollable (grid-panel :border 8 :id :aw-posts :vgap 10 :columns 1)) "grow,pushy"]
+                 [(my-scrollable (grid-panel :border 8 :id :aw-posts :vgap 10 :columns 1)) "grow,pushy"]
                  ]
          :constraints ["fill,gap 18px,hidemode 3"])
         evs (r/events)]
