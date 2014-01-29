@@ -16,7 +16,7 @@
    :items [[(label :border (line-border :color "#ddd" :thickness 1) :size [42 :by 42]) "spany 2"]
            [(label :id :author :text author :font (font :name "Arial" :style :bold :size 17))
             "cell 1 0,pushy,bottom"]
-           [(label :id :title :text title :font (font :name "Arial" :style :italic :size 15)) "cell 1 1,pushy,top"]]
+           [(label :id :title :text title :font (font :name "Arial" :style :italic :size 15)) "cell 1 1,pushy,top,wmax 400px"]]
    :constraints ["", "[][]", "[][]"]
    :border (line-border :color "#ccc" :thickness 1)
    :minimum-size [400 :by 60]))
@@ -37,16 +37,19 @@
                  (config! (select form [:#latest-fa-post]) :visible? true)
                  )))
            fa-stream)
-    ;; setup 'fetching from aw'
+    ;; when fa post is retrived, start fetching aw posts
     (r/map (fn [e]
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he1" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"}))
-             (add! (select form [:#aw-posts]) (make-post-widget {:author "he" :title "ho"})))
+             (let [c (async/chan)
+                   fa-post (:value e)]
+               ;; FIXME if c will contain :error, dismiss all fetched so far and clear listbox
+               (posts/fetch-unpublished-aw-posts fa-post c)
+               (async/go-loop []
+                        (let [post (<! c)]
+                          (when (not= :end post)
+                            (add! (select form [:#aw-posts]) (make-post-widget post))
+                            (recur)
+                            )))
+               ))
            fa-post-stream)
     ))
 
