@@ -40,15 +40,24 @@
     ;; when fa post is retrived, start fetching aw posts
     (r/map (fn [e]
              (let [c (async/chan)
+                   content-chan (async/chan)
                    fa-post (:value e)]
                ;; FIXME if c will contain :error, dismiss all fetched so far and clear listbox
                (posts/fetch-unpublished-aw-posts fa-post c)
-               (async/go-loop []
-                        (let [post (<! c)]
-                          (when (not= :end post)
-                            (add! (select form [:#aw-posts]) (make-post-widget post))
-                            (recur)
-                            )))
+               ;; as posts arrive they get accumulated until it is known that there's no error.
+               ;; when :end is received, fetching of actual post content starts
+               (async/go-loop
+                [fetched []]
+                (let [post (<! c)]
+                  (cond
+                   (= :error post) (prn "ERROR!") ;; FIXME clear list from all fetched so far, do other cleanup stuff, disable buttons etc
+                   (not= :end post) (do
+                                      (add! (select form [:#aw-posts]) (make-post-widget post))
+                                      (recur (conj fetched post)))
+                   (= :end post) (posts/fetch-aw-posts-content fetched content-chan))))
+               (async/go
+                (prn "got full post fetched" (<! content-chan))
+                )
                ))
            fa-post-stream)
     ))

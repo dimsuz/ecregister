@@ -62,6 +62,10 @@
     )
   )
 
+(defn extract-full-aw-post [html-string post]
+  (let [tree (html/html-resource (java.io.StringReader. html-string))]
+    (assoc post :content "<u>HI</u>")))
+
 (defn take-until [pred coll]
   "Takes items from sequence until pred is true. Item on which pred becomes false is included as last one."
   (let [[part1 part2] (split-with pred coll)]
@@ -95,6 +99,13 @@ and seq will be returned"
                    (recur (inc page))  ;; no published posts on this page return
                    (put! out-chan :error))))
              (put! out-chan :error))))
+
+(defn fetch-aw-posts-content [post-list out-chan]
+  (prn "Starting to fully fetch" (count post-list) "posts")
+  ;; fetch them one by one
+  (doseq [post post-list]
+    )
+  )
 
 (defn fetch-latest-fa-post [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
