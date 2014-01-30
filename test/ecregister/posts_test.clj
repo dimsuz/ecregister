@@ -67,9 +67,11 @@
 
 (fact "'extract-full-aw-post' does correct parsing"
   (let [TEST_HTML (slurp "./test/ecregister/full-post.html")
-        POST_CONTENT_HTML (slurp "./test/ecregister/full-post-content-only.html")]
+        POST_CONTENT_HTML (clojure.string/trim (slurp "./test/ecregister/full-post-content-only.html"))]
     (extract-full-aw-post TEST_HTML {:author "NgoMa" :title "Title"}) => (just {:author "NgoMa"
-                                                                                :title "Title"
-                                                                                :content POST_CONTENT_HTML}))
+                                                                                   :title "Title"
+                                                                                   :content POST_CONTENT_HTML
+                                                                                   :date "2014-01-27T00:18:04"
+                                                                                }))
 
   )

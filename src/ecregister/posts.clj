@@ -45,11 +45,10 @@
                      first
                      second)
         ]
-    ;; this is how to turn some part of subtree into a html
-    ;;(prn (apply str (html/emit* [(first (html/select tree [:.article-content]))])))
     {:author (if ic-name ic-name author),
      :id link,
      :title title}))
+
 
 (defn extract-aw-posts [html-string]
   (let [tree (html/html-resource (java.io.StringReader. html-string))
@@ -62,9 +61,19 @@
     )
   )
 
+(defn subtree-to-html [tree]
+  (apply str (html/emit* tree)))
+(defn remove-newline-n-tabs [s]
+  (apply str (filter (fn [c] (and (not= c \tab) (not= c \newline))) s)))
+(defn remove-cut-link [s]
+  (clojure.string/replace s #"\s?<a.*name=\"cut\".*?</a>\s?" ""))
+
 (defn extract-full-aw-post [html-string post]
-  (let [tree (html/html-resource (java.io.StringReader. html-string))]
-    (assoc post :content "<u>HI</u>")))
+  (let [tree (html/html-resource (java.io.StringReader. html-string))
+        topic-text (subtree-to-html (:content (first (html/select tree [:.topic-content]))))]
+    (assoc post :content (-> topic-text
+                             remove-newline-n-tabs
+                             remove-cut-link))))
 
 (defn take-until [pred coll]
   "Takes items from sequence until pred is true. Item on which pred becomes false is included as last one."
