@@ -71,7 +71,7 @@
     (extract-full-aw-post TEST_HTML {:author "NgoMa" :title "Title"}) => (just {:author "NgoMa"
                                                                                    :title "Title"
                                                                                    :content POST_CONTENT_HTML
-                                                                                   :date "2014-01-27T00:18:04"
+                                                                                   :date "2014-01-27T00:18:04+04:00"
                                                                                 }))
 
   )

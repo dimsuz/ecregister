@@ -70,10 +70,13 @@
 
 (defn extract-full-aw-post [html-string post]
   (let [tree (html/html-resource (java.io.StringReader. html-string))
-        topic-text (subtree-to-html (:content (first (html/select tree [:.topic-content]))))]
+        topic-text (subtree-to-html (:content (first (html/select tree [:.topic-content]))))
+        date (first (html/attr-values (first (html/select tree [:.topic-info-date :time])) :datetime))]
     (assoc post :content (-> topic-text
                              remove-newline-n-tabs
-                             remove-cut-link))))
+                             remove-cut-link)
+           :date date
+           )))
 
 (defn take-until [pred coll]
   "Takes items from sequence until pred is true. Item on which pred becomes false is included as last one."
