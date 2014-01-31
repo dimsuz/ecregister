@@ -114,9 +114,14 @@ and seq will be returned"
 
 (defn fetch-aw-posts-content [post-list out-chan]
   (prn "Starting to fully fetch" (count post-list) "posts")
-  ;; fetch them one by one
-  (doseq [post post-list]
-    )
+  ;; fetch them one by one sequentially, and post an :end in the end
+  (go
+   (doseq [post post-list]
+     (let [html (<! (get-html (:link post)))]
+       (if (= :error html)
+         (put! out-chan :error)
+         (put! out-chan (extract-full-aw-post html post)))))
+   (put! out-chan :end))
   )
 
 (defn fetch-latest-fa-post [out-chan]

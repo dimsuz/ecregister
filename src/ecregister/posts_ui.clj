@@ -55,8 +55,19 @@
                                       (add! (select form [:#aw-posts]) (make-post-widget post))
                                       (recur (conj fetched post)))
                    (= :end post) (posts/fetch-aw-posts-content fetched content-chan))))
-               (async/go
-                (prn "got full post fetched" (<! content-chan))
+               ;; after above function started retrieving full content, let's wait for it to arrive and accumulate posts as they go
+               (async/go-loop
+                [full-posts []]
+                (let [post (<! content-chan)]
+                  (cond
+                   (= :error post) (prn "ERROR getting full post!")
+                   (not= :end post) (do
+                                      (prn "got full post fetched" (:title post) "by" (:author post))
+                                      (config! (select form [(str "#" (:id post))]) :border (line-border :color "#8e80e4" :thickness 1))
+                                       ;; todo: mark success retrieval in ui
+                                      (recur (conj full-posts post)))
+                   (= :end post) (prn "full content retrieved for all posts, todo send json"))
+                  )
                 )
                ))
            fa-post-stream)
