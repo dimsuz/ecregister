@@ -21,7 +21,7 @@
    :border (line-border :color "#ccc" :thickness 1)
    :minimum-size [400 :by 60]))
 
-(defn setup-events [form event-stream]
+(defn setup-events [form event-chan create-tap]
   (listen (select form [:#publish-btn])
           :mouse-clicked (fn [e]
                            (when-let [posts (config (select form [:#publish-btn]) :user-data)]
@@ -38,73 +38,69 @@
                                                (dialog :content
                                                        (str "Successfully sent " (:value res) " posts"))))))))))))
 
-  (let [fa-stream (r/filter #(= :fa-post (:id %)) event-stream)
-        fa-post-stream (r/filter #(map? (:value %)) fa-stream)
-        posts-ready-stream (r/filter #(= :posts-ready (:id %)) event-stream)
-        publish-request-stream (r/filter #(= :publish (:id %)) event-stream)
+  (let [fa-stream (create-tap #(= :fa-post (:id %)))
+        fa-post-stream (create-tap #(and (= :fa-post (:id %)) (map? (:value %))))
+        posts-ready-stream (create-tap #(= :posts-ready (:id %)))
         ]
     ;; setup 'latest post' label and progressbar
-    (r/map (fn [e]
-             ;; TODO use cond
-             (if (= :wait (:value e))
-               (config! (select form [:#faprog]) :indeterminate? true)
-               (let [author (:author (:value e))
-                     title (:title (:value e))]
-                 (config! (select form [:#latest-fa-post :> :#author]) :text author)
-                 (config! (select form [:#latest-fa-post :> :#title]) :text title)
-                 (config! (select form [:#faprog]) :visible? false)
-                 (config! (select form [:#latest-fa-post]) :visible? true)
-                 )))
-           fa-stream)
+    (async/go-loop []
+      (let [e (async/<! fa-stream)]
+        (prn "fa-stream =>" e)
+        ;; TODO use cond
+        (if (= :wait (:value e))
+          (config! (select form [:#faprog]) :indeterminate? true)
+          (let [author (:author (:value e))
+                title (:title (:value e))]
+            (config! (select form [:#latest-fa-post :> :#author]) :text author)
+            (config! (select form [:#latest-fa-post :> :#title]) :text title)
+            (config! (select form [:#faprog]) :visible? false)
+            (config! (select form [:#latest-fa-post]) :visible? true)
+            )))
+      (recur))
     ;; when fa post is retrived, start fetching aw posts
-    (r/map (fn [e]
-             (let [c (async/chan)
-                   content-chan (async/chan)
-                   fa-post (:value e)]
-               ;; FIXME if c will contain :error, dismiss all fetched so far and clear listbox
-               (posts/fetch-unpublished-aw-posts fa-post c)
-               ;; as posts arrive they get accumulated until it is known that there's no error.
-               ;; when :end is received, fetching of actual post content starts
-               (async/go-loop
-                [fetched []]
-                (let [post (async/<! c)]
-                  (cond
-                   (= :error post) (prn "ERROR!") ;; FIXME clear list from all fetched so far, do other cleanup stuff, disable buttons etc
-                   (not= :end post) (do
-                                      (add! (select form [:#aw-posts]) (make-post-widget post))
-                                      (recur (conj fetched post)))
-                   (= :end post) (posts/fetch-aw-posts-content fetched content-chan))))
-               ;; after above function started retrieving full content, let's wait for it to arrive and accumulate posts as they go
-               (async/go-loop
-                [full-posts []]
-                (let [post (async/<! content-chan)]
-                  (cond
-                   (= :error post) (prn "ERROR getting full post!")
-                   (not= :end post) (do
-                                      (prn "got full post fetched" (:title post) "by" (:author post))
-                                      (config! (select form [(str "#" (:id post))]) :border (line-border :color "#8e80e4" :thickness 1))
-                                      (recur (conj full-posts post)))
-                   (= :end post) (do
-                                   (prn "all posts fetched")
-                                   (config! (select form [:#publish-btn]) :enabled? (not (empty? full-posts)))
-                                   (config! (select form [:#publish-btn]) :user-data full-posts)
-                                   ))
-                  )
-                )
-               ))
-           fa-post-stream)
-    (r/map (fn [e]
-
-             )
-           publish-request-stream)
+    (async/go-loop []
+      (let [e (async/<! fa-post-stream)
+            c (async/chan)
+            content-chan (async/chan)
+            fa-post (:value e)]
+        (prn "fa-post-stream =>" e)
+        ;; FIXME if c will contain :error, dismiss all fetched so far and clear listbox
+        (posts/fetch-unpublished-aw-posts fa-post c)
+        ;; as posts arrive they get accumulated until it is known that there's no error.
+        ;; when :end is received, fetching of actual post content starts
+        (async/go-loop
+            [fetched []]
+          (let [post (async/<! c)]
+            (cond
+             (= :error post) (prn "ERROR!") ;; FIXME clear list from all fetched so far, do other cleanup stuff, disable buttons etc
+             (not= :end post) (do
+                                (add! (select form [:#aw-posts]) (make-post-widget post))
+                                (recur (conj fetched post)))
+             (= :end post) (posts/fetch-aw-posts-content fetched content-chan))))
+        ;; after above function started retrieving full content, let's wait for it to arrive and accumulate posts as they go
+        (async/go-loop
+            [full-posts []]
+          (let [post (async/<! content-chan)]
+            (cond
+             (= :error post) (prn "ERROR getting full post!")
+             (not= :end post) (do
+                                (prn "got full post fetched" (:title post) "by" (:author post))
+                                (config! (select form [(str "#" (:id post))]) :border (line-border :color "#8e80e4" :thickness 1))
+                                (recur (conj full-posts post)))
+             (= :end post) (do
+                             (prn "all posts fetched")
+                             (config! (select form [:#publish-btn]) :enabled? (not (empty? full-posts)))
+                             (config! (select form [:#publish-btn]) :user-data full-posts)
+                             )))))
+      (recur))
     ))
 
-(defn launch-tab [event-stream]
+(defn launch-tab [event-chan]
   (let [c (async/chan)]
-    (r/push! event-stream {:id :fa-post, :value :wait})
+    (async/put! event-chan {:id :fa-post, :value :wait})
     (posts/fetch-latest-fa-post c)
     (async/go
-     (r/push! event-stream {:id :fa-post, :value (async/<! c)}))))
+     (async/put! event-chan {:id :fa-post, :value (async/<! c)}))))
 
 (defn my-scrollable [& args]
   (let [s (apply scrollable args)]
@@ -123,7 +119,10 @@
                  [(button :id :publish-btn :text "Опубликовать" :enabled? false) "center"]
                  ]
          :constraints ["fill,gap 18px,hidemode 3"])
-        evs (r/events)]
-    (setup-events form evs)
-    (launch-tab evs)
+        ev-chan (async/chan)
+        ev-mult (async/mult ev-chan)
+        tap-creator (fn [predfn] (async/filter< predfn (async/tap ev-mult (async/chan))))
+        ]
+    (setup-events form ev-chan tap-creator)
+    (launch-tab ev-chan)
     form))
