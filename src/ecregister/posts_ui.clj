@@ -25,7 +25,18 @@
   (listen (select form [:#publish-btn])
           :mouse-clicked (fn [e]
                            (when-let [posts (config (select form [:#publish-btn]) :user-data)]
-                             (r/push! event-stream {:id :publish :value posts}))))
+                             (let [c (async/chan)]
+                               (when (not (empty? posts))
+                                 (posts/send-aw-posts-to-fa-server posts c)
+                                 (async/go
+                                   (let [res (async/<! c)]
+                                     (if (= :error (:id res))
+                                       (show! (pack!
+                                               (dialog :content
+                                                       (str "Failed to send: " (:value res)))))
+                                       (show! (pack!
+                                               (dialog :content
+                                                       (str "Successfully sent " (:value res) " posts"))))))))))))
 
   (let [fa-stream (r/filter #(= :fa-post (:id %)) event-stream)
         fa-post-stream (r/filter #(map? (:value %)) fa-stream)
@@ -75,29 +86,15 @@
                                       (recur (conj full-posts post)))
                    (= :end post) (do
                                    (prn "all posts fetched")
-                                   (r/push! event-stream {:id :posts-ready :value full-posts})))
+                                   (config! (select form [:#publish-btn]) :enabled? (not (empty? full-posts)))
+                                   (config! (select form [:#publish-btn]) :user-data full-posts)
+                                   ))
                   )
                 )
                ))
            fa-post-stream)
     (r/map (fn [e]
-             (prn "received posts ready event")
-             (when-let [posts (:value e)]
-               (config! (select form [:#publish-btn]) :enabled? true)
-               (config! (select form [:#publish-btn]) :user-data posts))
-             )
-           posts-ready-stream)
-    (r/map (fn [e]
-             (let [c (async/chan)]
-               (posts/send-aw-posts-to-fa-server (:value e) c)
-               (async/go
-                 (let [res (async/<! c)]
-                   (if (= :error (:id res))
-                     (show! (pack! (dialog :content (str "Failed to send: " (:value res)))))
-                     (show! (pack! (dialog :content (str "Successfully sent " (:value res) " posts"))))
-                     )
 
-                   )))
              )
            publish-request-stream)
     ))
