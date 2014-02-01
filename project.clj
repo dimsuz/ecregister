@@ -8,7 +8,8 @@
                  [http-kit "2.1.12"]
                  [seesaw "1.4.4"]
                  [enlive "1.1.5"]
-                 [reagi "0.7.0"]]
+                 [reagi "0.7.0"]
+                 [cheshire "5.3.1"]]
   :main ^:skip-aot ecregister.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}

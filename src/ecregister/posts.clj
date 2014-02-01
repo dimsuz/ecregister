@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [org.httpkit.client :as http])
   (:require [net.cgrand.enlive-html :as html])
+  (:require [cheshire.core :as json])
   (:use [clojure.string :only [lower-case]])
   (:use [clojure.core.async :only [chan put! >! <! <!! go go-loop]])
   )
@@ -139,6 +140,22 @@ and seq will be returned"
        ;; b) more recent posts contain bigger ids, i.e. they grow with time
        (put! out-chan (last (sort-by #(Integer/parseInt (:id %)) [p1 p2])))))
     ))
+
+(defn get-int [str]
+  "Returns nil if str is not a number"
+  (try (Integer/parseInt str)
+    (catch NumberFormatException _)))
+
+(def freeaway-url "http://www.freeaway.ru")
+(defn send-aw-posts-to-fa-server [posts out-chan]
+  (prn "sending" (count posts) " posts to freeaway.ru")
+  (http/post (str freeaway-url "/clientapifa/add_posts")
+             {:form-params {"posts" (json/generate-string posts)}}
+             (fn [{:keys [status headers body error]}]
+               (if (or error (not= status 200) (nil? (get-int body)))
+                 (put! out-chan {:id :error :value (if error error body)})
+                 (put! out-chan {:id :post-sent-ok :value (get-int body)}))))
+  )
 
 ;; (let [tc (chan)]
 ;;   (fetch-latest-fa-post tc)

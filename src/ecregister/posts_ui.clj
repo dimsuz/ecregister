@@ -22,8 +22,16 @@
    :minimum-size [400 :by 60]))
 
 (defn setup-events [form event-stream]
+  (listen (select form [:#publish-btn])
+          :mouse-clicked (fn [e]
+                           (when-let [posts (config (select form [:#publish-btn]) :user-data)]
+                             (r/push! event-stream {:id :publish :value posts}))))
+
   (let [fa-stream (r/filter #(= :fa-post (:id %)) event-stream)
-        fa-post-stream (r/filter #(map? (:value %)) fa-stream)]
+        fa-post-stream (r/filter #(map? (:value %)) fa-stream)
+        posts-ready-stream (r/filter #(= :posts-ready (:id %)) event-stream)
+        publish-request-stream (r/filter #(= :publish (:id %)) event-stream)
+        ]
     ;; setup 'latest post' label and progressbar
     (r/map (fn [e]
              ;; TODO use cond
@@ -48,7 +56,7 @@
                ;; when :end is received, fetching of actual post content starts
                (async/go-loop
                 [fetched []]
-                (let [post (<! c)]
+                (let [post (async/<! c)]
                   (cond
                    (= :error post) (prn "ERROR!") ;; FIXME clear list from all fetched so far, do other cleanup stuff, disable buttons etc
                    (not= :end post) (do
@@ -58,19 +66,40 @@
                ;; after above function started retrieving full content, let's wait for it to arrive and accumulate posts as they go
                (async/go-loop
                 [full-posts []]
-                (let [post (<! content-chan)]
+                (let [post (async/<! content-chan)]
                   (cond
                    (= :error post) (prn "ERROR getting full post!")
                    (not= :end post) (do
                                       (prn "got full post fetched" (:title post) "by" (:author post))
                                       (config! (select form [(str "#" (:id post))]) :border (line-border :color "#8e80e4" :thickness 1))
-                                       ;; todo: mark success retrieval in ui
                                       (recur (conj full-posts post)))
-                   (= :end post) (prn "full content retrieved for all posts, todo send json"))
+                   (= :end post) (do
+                                   (prn "all posts fetched")
+                                   (r/push! event-stream {:id :posts-ready :value full-posts})))
                   )
                 )
                ))
            fa-post-stream)
+    (r/map (fn [e]
+             (prn "received posts ready event")
+             (when-let [posts (:value e)]
+               (config! (select form [:#publish-btn]) :enabled? true)
+               (config! (select form [:#publish-btn]) :user-data posts))
+             )
+           posts-ready-stream)
+    (r/map (fn [e]
+             (let [c (async/chan)]
+               (posts/send-aw-posts-to-fa-server (:value e) c)
+               (async/go
+                 (let [res (async/<! c)]
+                   (if (= :error (:id res))
+                     (show! (pack! (dialog :content (str "Failed to send: " (:value res)))))
+                     (show! (pack! (dialog :content (str "Successfully sent " (:value res) " posts"))))
+                     )
+
+                   )))
+             )
+           publish-request-stream)
     ))
 
 (defn launch-tab [event-stream]
@@ -93,7 +122,8 @@
          :items [[(label "Последний опубликованный пост") "top,center,wrap"]
                  [(progress-bar :id :faprog :indeterminate? false :value 10) "center,wrap"]
                  [(make-post-widget {:id :latest-fa-post :author "" :title "" :visible? false}) "center,wrap"]
-                 [(my-scrollable (grid-panel :border 8 :id :aw-posts :vgap 10 :columns 1)) "grow,pushy"]
+                 [(my-scrollable (grid-panel :border 8 :id :aw-posts :vgap 10 :columns 1)) "grow,pushy,wrap"]
+                 [(button :id :publish-btn :text "Опубликовать" :enabled? false) "center"]
                  ]
          :constraints ["fill,gap 18px,hidemode 3"])
         evs (r/events)]
