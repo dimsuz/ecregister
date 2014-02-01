@@ -128,6 +128,7 @@ and seq will be returned"
 (defn fetch-latest-fa-post [out-chan]
   "Fetches a data about two most recent posts - in articles and in poetry categories, outputs to passed channel"
   (let [parsed-html-chan (chan)]
+    (prn "start getting latest post")
     (go
      (>! parsed-html-chan (extract-fa-post (<! (get-html "http://www.freeaway.ru/articles/all")))))
     (go
@@ -135,6 +136,7 @@ and seq will be returned"
     (go
      (let [p1 (<! parsed-html-chan)
            p2 (<! parsed-html-chan)]
+       (prn "fa posts retrieved")
        ;; note: when finding latest of two posts relying on these facts here:
        ;; a) id's are strings which are actually numbers
        ;; b) more recent posts contain bigger ids, i.e. they grow with time
