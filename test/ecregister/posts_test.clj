@@ -13,6 +13,17 @@
     (:id parsed) => "29665"
     ))
 
+;; NgoMa name is a special case on freeaway.ru, has different name in parens
+;.;. Simplicity, carried to the extreme, becomes elegance. -- Jon Franklin
+(fact "'extract-fa-post' does correct parsing for internal circle"
+  (let [TEST_HTML (slurp "./test/ecregister/freeaway-article-ngo-ma.html")
+        parsed (extract-fa-post TEST_HTML)]
+    parsed => map?
+    (:author parsed) => "NgoMa"
+    (:title parsed) => "Дракон: Колесо неприятия..."
+    (:id parsed) => "30862"
+    ))
+
 (fact "'extract-fa-post' does correct parsing for external circle"
   (let [TEST_HTML (slurp "./test/ecregister/freeaway-article-ec.html")
         parsed (extract-fa-post TEST_HTML)]

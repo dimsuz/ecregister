@@ -8,7 +8,7 @@
   )
 
 ;; How deep into AW posts history we are allowed to enter?
-(def max-page-depth 32)
+(def max-page-depth 10)
 
 (defn get-html [url]
   "Fetches html and returns an unbuffered channel to which response will be put when ready"
@@ -40,11 +40,13 @@
         author (html/text (first (html/select tree [:a.author-link])))
         title (html/text (first (html/select tree [:.article-content :> :h1])))
         link (first (link-ids (html/select tree [:.article-links :a])))
+        subst-dragon #(if (= "Дракон" %) "NgoMa" %)
         ;; for internal circle format is "Name (nick)", for external - just "nick"
         ic-name (->> author
-                     (re-seq #".+\((\w+)\).*")
+                     (re-seq #".+\((.+)\).*")
                      first
-                     second)
+                     second
+                     subst-dragon)
         ]
     {:author (if ic-name ic-name author),
      :id link,
