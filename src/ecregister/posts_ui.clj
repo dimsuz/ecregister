@@ -22,7 +22,7 @@
    :minimum-size [400 :by 60]))
 
 
-(defn update-fa-post-widget [e form]
+(defn update-fa-post-widget [form e]
   ;; TODO use cond
   (if (= :wait (:value e))
     (config! (select form [:#faprog]) :indeterminate? true)
@@ -34,7 +34,7 @@
       (config! (select form [:#latest-fa-post]) :visible? true)
       )))
 
-(defn fetch-aw-posts [e form]
+(defn fetch-aw-posts [form e]
   (let [c (async/chan)
         content-chan (async/chan)
         fa-post (:value e)]
@@ -65,27 +65,30 @@
                          (config! (select form [:#publish-btn]) :user-data full-posts)
                          ))))))
 
+(defn publish-to-fa [form e]
+  (when-let [posts (config (select form [:#publish-btn]) :user-data)]
+    (let [c (async/chan)]
+      (when (not (empty? posts))
+        (posts/send-aw-posts-to-fa-server posts c)
+        (async/go
+          (let [res (async/<! c)]
+            (if (= :error (:id res))
+              (show! (pack!
+                      (dialog :content
+                              (str "Failed to send: " (:value res)))))
+              (show! (pack!
+                      (dialog :content
+                              (str "Successfully sent " (:value res) " posts")))))))))))
+
 (defn setup-events [form event-chan map-stream]
   (listen (select form [:#publish-btn])
-          :mouse-clicked (fn [e]
-                           (when-let [posts (config (select form [:#publish-btn]) :user-data)]
-                             (let [c (async/chan)]
-                               (when (not (empty? posts))
-                                 (posts/send-aw-posts-to-fa-server posts c)
-                                 (async/go
-                                   (let [res (async/<! c)]
-                                     (if (= :error (:id res))
-                                       (show! (pack!
-                                               (dialog :content
-                                                       (str "Failed to send: " (:value res)))))
-                                       (show! (pack!
-                                               (dialog :content
-                                                       (str "Successfully sent " (:value res) " posts"))))))))))))
+          :mouse-clicked #(async/put! event-chan {:id :publish-now :value true}))
 
   ;; setup 'latest post' label and progressbar
-  (map-stream #(= :fa-post (:id %)) #(update-fa-post-widget % form))
+  (map-stream #(= :fa-post (:id %)) (partial update-fa-post-widget form))
   ;; when fa post is retrived, start fetching aw posts
-  (map-stream #(and (= :fa-post (:id %)) (map? (:value %))) #(fetch-aw-posts % form)))
+  (map-stream #(and (= :fa-post (:id %)) (map? (:value %))) (partial fetch-aw-posts form))
+  (map-stream #(= :publish-now (:id %)) (partial publish-to-fa form)))
 
 (defn launch-tab [event-chan]
   (let [c (async/chan)]
