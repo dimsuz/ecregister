@@ -39,11 +39,12 @@ saves newly stamped to state updates widgets"
                               (get-in @state [:stamp-path (:stamp-type @state)])
                               (:image-ext @state)))
     (config! (select form [:#stamped-ava]) :icon (:image-stamped @state))
-    (let [filename (str (:username @state) "." (:image-ext @state))]
+    (let [filename-orig (str (:username @state) "." (:image-ext @state))
+          filename-new (str (:username @state) "." (av/ext-for (:image-stamped @state)))]
       (config! (select form [:#save-label-orig])
-               :text (str (:save-dir-orig @state) filename))
+               :text (str (:save-dir-orig @state) filename-orig))
       (config! (select form [:#save-label-new])
-               :text (str (:save-dir-new @state) filename)))))
+               :text (str (:save-dir-new @state) filename-new)))))
 
 (defn show-busy-indicators [show? form]
   (let [label-ava-orig (select form [:#orig-ava])

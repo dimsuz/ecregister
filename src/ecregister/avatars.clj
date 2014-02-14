@@ -14,7 +14,7 @@
             (fn [{:keys [opts status body error]}]
               (if (or error (not= status 200))
                 (put! chan :error) ;; error happened
-                (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png))" body)
+                (let [matcher (re-matcher #"src=\"(.+avatar_100x100.(jpg|png|gif))" body)
                       groups (re-find matcher)
                       url (second groups)
                       ext (nth groups 2)]
@@ -40,12 +40,14 @@
                            (= BufferedImage/TYPE_INT_ARGB_PRE (.getType image))
                            (= BufferedImage/TYPE_4BYTE_ABGR_PRE (.getType image))
                            )))
+(defn ext-for [image]
+  (if has-alpha? "png" "jpg"))
 
 (defn write-image [output-dir image-name image]
   "Writes an image to a file, returns a saved image file name"
   (when (every? #(not (nil? %)) [output-dir image-name image])
     (let [has-alpha? (has-alpha? image)
-          ext (if has-alpha? "png" "jpg")
+          ext (ext-for image)
           filename (str image-name "." ext)
           out-file (file (str output-dir filename))]
       (if has-alpha?
