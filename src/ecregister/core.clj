@@ -208,29 +208,30 @@ saves newly stamped to state updates widgets"
   (horizontal-panel
    :items [(tabbed-panel
             :placement :bottom
-            :tabs [ ;;{:title "Аватарки" :content (build-avatars-tab)}
-                    {:title "Посты" :content (pui/build-posts-tab)}])
+            :tabs [ {:title "Аватарки" :content (build-avatars-tab)}
+                    {:title "Посты" :content (pui/build-posts-tab)}
+                    ])
            ]))
 
 (defn make-frame [content]
-  (println "content " content)
   (frame
    :title "Free Away Admin"
    :on-close :hide
    :size [640 :by 480]
-   :content (build-content)
+   :content content
    ))
 
-;; (def f (make-frame (build-content)))
-;; (show! f)
-;; (config! f :content (build-content))
+(def f (make-frame (build-content)))
+(show! f)
+(config! f :content (build-content))
 
-(defn -main [& args]
-  (invoke-later
-   (->
-    (build-content)
-    (make-frame)
-;;    pack!
-    show!
-    ))
-)
+
+;; (defn -main [& args]
+;;   (invoke-later
+;;    (->
+;;     (build-content)
+;;     (make-frame)
+;; ;;    pack!
+;;     show!
+;;     ))
+;; )
