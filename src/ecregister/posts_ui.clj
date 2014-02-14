@@ -82,7 +82,7 @@
 
 (defn setup-events [form event-chan map-stream]
   (listen (select form [:#publish-btn])
-          :mouse-clicked #(async/put! event-chan {:id :publish-now :value true}))
+          :mouse-clicked (fn [e] (async/put! event-chan {:id :publish-now :value true})))
 
   ;; setup 'latest post' label and progressbar
   (map-stream #(= :fa-post (:id %)) (partial update-fa-post-widget form))
