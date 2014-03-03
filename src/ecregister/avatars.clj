@@ -40,8 +40,9 @@
                            (= BufferedImage/TYPE_INT_ARGB_PRE (.getType image))
                            (= BufferedImage/TYPE_4BYTE_ABGR_PRE (.getType image))
                            )))
+
 (defn ext-for [image]
-  (if has-alpha? "png" "jpg"))
+  (if (has-alpha? image) "png" "jpg"))
 
 (defn write-image [output-dir image-name image]
   "Writes an image to a file, returns a saved image file name"
