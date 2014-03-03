@@ -52,7 +52,7 @@
           filename (str image-name "." ext)
           out-file (file (str output-dir filename))]
       (if has-alpha?
-        (ImageIO/write image "png" out-file)
+        (ImageIO/write image ext out-file)
         ; else need to tweak jpeg compression quality
         (let [writer (.next (ImageIO/getImageWritersByFormatName "jpeg"))
               param (.getDefaultWriteParam writer)
