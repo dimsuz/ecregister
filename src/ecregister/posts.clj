@@ -53,14 +53,23 @@
      :title title}))
 
 
+(defn extract-date [time-tag]
+  (first (html/attr-values time-tag :datetime)))
+(defn extract-fav [fav-tag]
+  (let [fav-str (html/text fav-tag)]
+    (if (= "" fav-str) "0" fav-str)))
+
 (defn extract-aw-posts [html-string]
   (let [tree (html/html-resource (java.io.StringReader. html-string))
         authors (map html/text (html/select tree [#{:.content :.topic-container} :.topic-header (html/attr= :rel "author")]))
         titles (map html/text (html/select tree [:.topic-title :> :a]))
         ids (link-ids (html/select tree [:.topic-title :> :a]))
         links (link-hrefs (html/select tree [:.topic-title :> :a]))
+        favorites (map extract-fav (html/select tree [#{:.content :.topic-container} :.favourite-count]))
+        dates (map extract-date (html/select tree [#{:.content :.topic-container} :.topic-info-date :time]))
         ]
-    (map #(zipmap [:author :title :id :link] [%1 %2 %3 %4]) authors titles ids links)
+    (map #(zipmap
+           [:author :title :id :link :fav-count :date] [%1 %2 %3 %4 %5 %6]) authors titles ids links favorites dates)
     )
   )
 
@@ -114,6 +123,19 @@ and seq will be returned"
                    (recur (inc page))  ;; no published posts on this page return
                    (put! out-chan :error))))
              (put! out-chan :error))))
+
+(defn fetch-aw-posts [pred]
+  "Will fetch new AW posts starting from page 1 and going to next pages until pred is truthy.
+pred will be called with one argument representing post after gathering posts on one page.
+After pred returns falsey value this function will return all collected posts from all pages visited"
+  (loop [page 1 all-posts []]
+    (if-let [posts (extract-aw-posts (<!! (get-html (str "http://advaitaworld.com/blog/free-away/page" page))))]
+      (let [filtered (filter pred posts)
+            upd-posts (concat all-posts filtered)]
+        ;; continue if not stopped on some post (i.e. all accepted)
+        (if (= (count posts) (count filtered))
+          (recur (inc page) upd-posts)
+          upd-posts)))))
 
 (defn fetch-aw-posts-content [post-list out-chan]
   (prn "Starting to fully fetch" (count post-list) "posts")

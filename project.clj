@@ -9,7 +9,8 @@
                  [seesaw "1.4.4"]
                  [enlive "1.1.5"]
                  [reagi "0.7.0"]
-                 [cheshire "5.3.1"]]
+                 [cheshire "5.3.1"]
+                 [clj-time "0.7.0"]]
   :main ^:skip-aot ecregister.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
