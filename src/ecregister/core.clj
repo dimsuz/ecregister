@@ -24,10 +24,10 @@
   (apply swap! state assoc args))
 (defn reset-state []
   (reset! state {:stamp-type :bottom
-                :stamp-path {:bottom "/home/dimka/free-away/avatars/stamp_bot.png"
-                             :top    "/home/dimka/free-away/avatars/stamp_top.png"}
-                :save-dir-orig "/home/dimka/free-away/avatars/orig/"
-                :save-dir-new "/home/dimka/free-away/avatars/new/"
+                :stamp-path {:bottom "/home/dima/projects/free-away/avatars/stamp_bot.png"
+                             :top    "/home/dima/projects/free-away/avatars/stamp_top.png"}
+                :save-dir-orig "/home/dima/projects/free-away/avatars/orig/"
+                :save-dir-new "/home/dima/projects/free-away/avatars/new/"
                 }))
 
 (defn update-stamped-image [form]
