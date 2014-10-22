@@ -14,8 +14,8 @@
                post-date)))
 
 (defn print-post [p]
-  (prn (format "<a href=\"%s\">%s</a>, автор <ls user=\"%s\"/> (%s голосов)"
-               (:link p) (:title p) (:author p) (:fav-count p))))
+  (println (format "<a href=\"%s\">%s</a>, автор <ls user=\"%s\"/>"
+               (:link p) (:title p) (:author p))))
 
 (defn print-favorites [since-date]
   (let [all-posts (posts/fetch-aw-posts #(is-more-recent since-date %))]
